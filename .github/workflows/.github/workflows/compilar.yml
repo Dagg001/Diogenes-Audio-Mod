@@ -1,0 +1,32 @@
+name: Compilar Diogenes Audio Mod
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Crear Ejecutable Windows
+    runs-on: windows-latest
+
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v4
+
+      - name: Instalar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar PyInstaller
+        run: python -m pip install pyinstaller
+
+      - name: Compilar la Aplicación
+        run: python -m PyInstaller --onefile --windowed Diogenes_Audio_Mod.py
+
+      - name: Subir el .exe listo para descargar
+        uses: actions/upload-artifact@v4
+        with:
+          name: Diogenes_Audio_Mod_Windows
+          path: dist/Diogenes_Audio_Mod.exe
