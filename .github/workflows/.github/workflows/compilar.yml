@@ -1,13 +1,18 @@
-name: Compilar Diogenes Audio Mod
+name: Publicar Release Diogenes Audio Mod
 
+# El robot ahora solo se activará cuando subas una "Etiqueta de versión" (ej. v1.0)
 on:
   push:
-    branches: [ "main" ]
-  workflow_dispatch:
+    tags:
+      - 'v*' 
+
+# Permisos necesarios para que el robot pueda crear la Release en tu repositorio
+permissions:
+  contents: write
 
 jobs:
-  build:
-    name: Crear Ejecutable Windows
+  build-and-release:
+    name: Crear Ejecutable y Publicar Release
     runs-on: windows-latest
 
     steps:
@@ -25,8 +30,10 @@ jobs:
       - name: Compilar la Aplicación
         run: python -m PyInstaller --onefile --windowed Diogenes_Audio_Mod.py
 
-      - name: Subir el .exe listo para descargar
-        uses: actions/upload-artifact@v4
+      - name: Crear Release y Subir .exe
+        uses: softprops/action-gh-release@v2
         with:
-          name: Diogenes_Audio_Mod_Windows
-          path: dist/Diogenes_Audio_Mod.exe
+          files: dist/Diogenes_Audio_Mod.exe # Sube directamente el archivo ejecutable
+          generate_release_notes: true       # Genera un texto automático con los cambios
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
