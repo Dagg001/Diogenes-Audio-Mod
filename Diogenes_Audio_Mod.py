@@ -8,7 +8,10 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, simpledialog
 from tkinter import ttk 
 import winsound
-#hola mundo
+
+# ================= VERSIÓN =================
+VERSION = "0.2"
+
 # ================= DICCIONARIO DE IDIOMAS =================
 TEXTOS = {
     "Español": {
@@ -155,7 +158,7 @@ class EditorAudioApp:
 
     def actualizar_textos(self):
         """Actualiza todos los textos de la interfaz principal sin reiniciarla."""
-        self.root.title(self.t("titulo"))
+        self.root.title(f"{self.t('titulo')} v{VERSION}")
         self.lbl_carpeta.config(text=self.t("carpeta"))
         self.btn_explorar.config(text=self.t("explorar"))
         self.lbl_cortar.config(text=self.t("cortar"))
