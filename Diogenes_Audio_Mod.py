@@ -10,7 +10,7 @@ import customtkinter as ctk
 import winsound
 
 # ================= VERSIÓN =================
-VERSION = "0.7 (Custom UI & Optimized)"
+VERSION = "0.8 (Filter & Sort Implementation)"
 
 # ================= DICCIONARIO DE IDIOMAS =================
 TEXTOS = {
@@ -27,6 +27,11 @@ TEXTOS = {
         "cargar_oto": "Cargar OTO.ini",
         "sel_todas": "☑ Seleccionar Todas",
         "des_todas": "☐ Deseleccionar Todas",
+        "filtro_lbl": "Filtrar por:",
+        "filtro_az": "A-Z",
+        "filtro_za": "Z-A",
+        "filtro_new": "Más Recientes",
+        "filtro_old": "Más Antiguos",
         "lista_audios": "Lista de Audios:",
         "previsualizar": "Previsualizar Modificaciones",
         "procesando_tit": "Procesando Audios...",
@@ -74,6 +79,11 @@ TEXTOS = {
         "cargar_oto": "Load OTO.ini",
         "sel_todas": "☑ Select All",
         "des_todas": "☐ Deselect All",
+        "filtro_lbl": "Sort by:",
+        "filtro_az": "A-Z",
+        "filtro_za": "Z-A",
+        "filtro_new": "Newest First",
+        "filtro_old": "Oldest First",
         "lista_audios": "Audio List:",
         "previsualizar": "Preview Modifications",
         "procesando_tit": "Processing Audios...",
@@ -121,6 +131,11 @@ TEXTOS = {
         "cargar_oto": "Carregar OTO.ini",
         "sel_todas": "☑ Selecionar Todas",
         "des_todas": "☐ Desmarcar Todas",
+        "filtro_lbl": "Ordenar por:",
+        "filtro_az": "A-Z",
+        "filtro_za": "Z-A",
+        "filtro_new": "Mais Recentes",
+        "filtro_old": "Mais Antigos",
         "lista_audios": "Lista de Áudios:",
         "previsualizar": "Pré-visualizar Mudanças",
         "procesando_tit": "Processando Áudios...",
@@ -134,7 +149,7 @@ TEXTOS = {
             "1. Pasta de origem: Selecione a pasta com suas gravações originais (.wav).\n\n"
             "2. Segundos para cortar: Elimina tempos mortos, respirações ou cliques no início do áudio. Use os botões + ou -.\n\n"
             "3. Volume e Normalizar: \n"
-            "   - 'Volume' ajusta o som usando uma porcentagem fixa.\n"
+            "   - 'Volume' ajusta o ganho usando uma porcentagem fixa.\n"
             "   - 'Normalizar' ignora o % e aumenta o áudio para o pico máximo seguro sem distorcer (Muito Recomendado).\n\n"
             "4. Sufixo: Texto anexado ao final de cada arquivo. Ex: Se você digitar '_C4', seu áudio 'ka.wav' será salvo como 'ka_C4.wav' (Ideal para Multipitch).\n\n"
             "5. OTO.ini Base:\n"
@@ -165,7 +180,7 @@ class EditorAudioApp:
         # Configuración Visual CustomTkinter
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("dark-blue")
-        self.root.geometry("820x800")
+        self.root.geometry("820x850")
         
         # Paleta de Colores Uniforme
         self.PURPLE_BASE = "#36165e" 
@@ -183,6 +198,9 @@ class EditorAudioApp:
         self.custom_oto_data = {} 
         self.metodo_origen_oto = "CV" 
         
+        self.filtro_actual = "A-Z"
+        self.filtro_prev_actual = "A-Z"
+        
         self.btn_reproduciendo = None
         self.after_id = None 
         self.ruta_temp = os.path.join(tempfile.gettempdir(), "temp_preview_audio.wav")
@@ -194,9 +212,17 @@ class EditorAudioApp:
         return TEXTOS[self.idioma_actual][clave]
 
     def cambiar_idioma(self, valor):
-        """Se activa automáticamente al seleccionar un idioma en el ComboBox."""
         self.idioma_actual = valor
         self.actualizar_textos()
+
+    def _get_filter_text(self, internal_filter):
+        mapping = {
+            "A-Z": "filtro_az",
+            "Z-A": "filtro_za",
+            "NEW": "filtro_new",
+            "OLD": "filtro_old"
+        }
+        return self.t(mapping.get(internal_filter, "filtro_az"))
 
     def actualizar_textos(self):
         self.root.title(f"{self.t('titulo')} v{VERSION}")
@@ -211,12 +237,17 @@ class EditorAudioApp:
         self.btn_cargar_oto.configure(text=self.t("cargar_oto"))
         self.btn_sel_todas.configure(text=self.t("sel_todas"))
         self.btn_des_todas.configure(text=self.t("des_todas"))
+        
+        self.lbl_filtro.configure(text=self.t("filtro_lbl"))
+        filtros_lista = [self.t("filtro_az"), self.t("filtro_za"), self.t("filtro_new"), self.t("filtro_old")]
+        self.combo_filtro.configure(values=filtros_lista)
+        self.combo_filtro.set(self._get_filter_text(self.filtro_actual))
+        
         self.lbl_lista.configure(text=self.t("lista_audios"))
         self.btn_previsualizar.configure(text=self.t("previsualizar"))
 
     # ================= SISTEMA DE ALERTAS PERSONALIZADAS CTK =================
     def mostrar_alerta(self, titulo, mensaje, tipo="info"):
-        """Genera una ventana emergente de aviso con la misma estética oscura y botones uniformes."""
         alerta = ctk.CTkToplevel(self.root)
         alerta.title(titulo)
         alerta.geometry("400x220")
@@ -224,7 +255,6 @@ class EditorAudioApp:
         alerta.transient(self.root)
         alerta.grab_set()
         
-        # Centrar alerta en pantalla
         self.root.update_idletasks()
         x = self.root.winfo_x() + (self.root.winfo_width() // 2) - 200
         y = self.root.winfo_y() + (self.root.winfo_height() // 2) - 110
@@ -239,7 +269,6 @@ class EditorAudioApp:
         btn_ok.pack(pady=(0, 20))
 
     def mostrar_ayuda(self):
-        """Genera una ventana grande y elegante para mostrar los textos largos de ayuda."""
         ayuda_win = ctk.CTkToplevel(self.root)
         ayuda_win.title(self.t("ayuda_tit"))
         ayuda_win.geometry("580x480")
@@ -275,7 +304,6 @@ class EditorAudioApp:
         
         ctk.CTkLabel(frame_top, text="🌐", font=self.FONT_MAIN).pack(side="left")
         
-        # Configuración del ComboBox con 'command' para arreglar el bug
         self.combo_idioma = ctk.CTkComboBox(frame_top, values=["Español", "English", "Português"], 
                                             state="readonly", width=120, font=self.FONT_MAIN,
                                             fg_color=self.PURPLE_BASE, border_color=self.PURPLE_HOVER, 
@@ -360,7 +388,7 @@ class EditorAudioApp:
 
         self.btn_quitar_oto = ctk.CTkButton(row5, text="❌", width=30, fg_color=self.RED_BASE, hover_color=self.RED_HOVER, command=self.quitar_oto_personalizado)
 
-        # --- PANEL DE SELECCIÓN ---
+        # --- PANEL DE SELECCIÓN Y FILTROS ---
         frame_selecciones = ctk.CTkFrame(main_container, fg_color="transparent")
         frame_selecciones.pack(fill="x", pady=(5, 5))
         
@@ -368,6 +396,14 @@ class EditorAudioApp:
         self.btn_sel_todas.pack(side="left", padx=(0, 10))
         self.btn_des_todas = ctk.CTkButton(frame_selecciones, text="", width=150, font=self.FONT_MAIN, fg_color=self.GRAY_INNER, hover_color="#444444", command=lambda: self._cambiar_seleccion_todas(False))
         self.btn_des_todas.pack(side="left")
+        
+        frame_filtro = ctk.CTkFrame(main_container, fg_color="transparent")
+        frame_filtro.pack(fill="x", pady=(5, 5))
+        
+        self.lbl_filtro = ctk.CTkLabel(frame_filtro, text="", font=self.FONT_MAIN)
+        self.lbl_filtro.pack(side="left", padx=(0, 10))
+        self.combo_filtro = ctk.CTkComboBox(frame_filtro, values=["A-Z"], state="readonly", width=140, font=self.FONT_MAIN, fg_color=self.GRAY_INNER, border_color=self.PURPLE_BASE, button_color=self.PURPLE_BASE, button_hover_color=self.PURPLE_HOVER, command=self.aplicar_filtro_lista)
+        self.combo_filtro.pack(side="left")
 
         # --- PANEL CENTRAL (SCROLL MODERNO) ---
         self.lbl_lista = ctk.CTkLabel(main_container, text="", font=self.FONT_TITLE)
@@ -464,7 +500,7 @@ class EditorAudioApp:
                     self.metodo_origen_oto = "CVVC"
 
             self.combo_metodo.set(self.metodo_origen_oto)
-            self.lbl_oto_estado.configure(text=f"[{os.path.basename(ruta)}]", text_color="#2ECC71") # Verde éxito
+            self.lbl_oto_estado.configure(text=f"[{os.path.basename(ruta)}]", text_color="#2ECC71")
             self.btn_quitar_oto.pack(side="left", padx=5)
             self.mostrar_alerta("OTO.ini", f"{self.t('msg_oto_exito')} {self.metodo_origen_oto}")
 
@@ -492,6 +528,29 @@ class EditorAudioApp:
             return f"- {alias_limpio}"
         else:
             return alias_limpio
+
+    # ================= LÓGICA DE FILTROS =================
+    def aplicar_filtro_lista(self, valor):
+        if valor == self.t("filtro_az"):
+            self.filtro_actual = "A-Z"
+        elif valor == self.t("filtro_za"):
+            self.filtro_actual = "Z-A"
+        elif valor == self.t("filtro_new"):
+            self.filtro_actual = "NEW"
+        elif valor == self.t("filtro_old"):
+            self.filtro_actual = "OLD"
+        
+        self.renderizar_lista_audios()
+
+    def _ordenar_datos(self, data_list, filtro):
+        if filtro == "A-Z":
+            data_list.sort(key=lambda x: x["nombre"].lower())
+        elif filtro == "Z-A":
+            data_list.sort(key=lambda x: x["nombre"].lower(), reverse=True)
+        elif filtro == "NEW":
+            data_list.sort(key=lambda x: x["mtime"], reverse=True)
+        elif filtro == "OLD":
+            data_list.sort(key=lambda x: x["mtime"])
 
     # ================= LÓGICA DE SELECCIÓN =================
     def _cambiar_seleccion_todas(self, estado_deseado):
@@ -557,7 +616,6 @@ class EditorAudioApp:
             self.cargar_lista_audios()
 
     def cargar_lista_audios(self):
-        for widget in self.frame_interior.winfo_children(): widget.destroy()
         self.archivos_data.clear()
         
         for raiz, _, archivos in os.walk(self.carpeta_base):
@@ -565,21 +623,35 @@ class EditorAudioApp:
                 if archivo.lower().endswith(".wav"):
                     ruta_abs = os.path.join(raiz, archivo)
                     ruta_rel = os.path.relpath(ruta_abs, self.carpeta_base)
+                    mtime = os.path.getmtime(ruta_abs)
                     var_check = tk.BooleanVar(value=True)
                     
-                    self.archivos_data.append({"nombre": archivo, "ruta_absoluta": ruta_abs, "ruta_relativa": ruta_rel, "var": var_check})
+                    self.archivos_data.append({
+                        "nombre": archivo, 
+                        "ruta_absoluta": ruta_abs, 
+                        "ruta_relativa": ruta_rel, 
+                        "mtime": mtime,
+                        "var": var_check
+                    })
                     
-                    row_frame = ctk.CTkFrame(self.frame_interior, fg_color="transparent")
-                    row_frame.pack(fill="x", pady=2)
-                    
-                    chk = ctk.CTkCheckBox(row_frame, text="", variable=var_check, width=30, checkbox_width=20, checkbox_height=20, fg_color=self.PURPLE_BASE, hover_color=self.PURPLE_HOVER)
-                    chk.pack(side="left", padx=5)
-                    
-                    btn_play = ctk.CTkButton(row_frame, text="▶", width=40, font=self.FONT_MAIN, fg_color=self.GRAY_INNER, hover_color="#444444")
-                    btn_play.configure(command=lambda r=ruta_abs, b=btn_play: self._toggle_reproducir(r, b, es_memoria=False))
-                    btn_play.pack(side="left", padx=5)
-                    
-                    ctk.CTkLabel(row_frame, text=ruta_rel, font=self.FONT_MAIN, anchor="w").pack(side="left", fill="x", expand=True)
+        self.renderizar_lista_audios()
+
+    def renderizar_lista_audios(self):
+        for widget in self.frame_interior.winfo_children(): widget.destroy()
+        self._ordenar_datos(self.archivos_data, self.filtro_actual)
+        
+        for dato in self.archivos_data:
+            row_frame = ctk.CTkFrame(self.frame_interior, fg_color="transparent")
+            row_frame.pack(fill="x", pady=2)
+            
+            chk = ctk.CTkCheckBox(row_frame, text="", variable=dato["var"], width=30, checkbox_width=20, checkbox_height=20, fg_color=self.PURPLE_BASE, hover_color=self.PURPLE_HOVER)
+            chk.pack(side="left", padx=5)
+            
+            btn_play = ctk.CTkButton(row_frame, text="▶", width=40, font=self.FONT_MAIN, fg_color=self.GRAY_INNER, hover_color="#444444")
+            btn_play.configure(command=lambda r=dato["ruta_absoluta"], b=btn_play: self._toggle_reproducir(r, b, es_memoria=False))
+            btn_play.pack(side="left", padx=5)
+            
+            ctk.CTkLabel(row_frame, text=dato["ruta_relativa"], font=self.FONT_MAIN, anchor="w").pack(side="left", fill="x", expand=True)
 
     def procesar_audio_a_memoria(self, ruta_in, segundos_cortar, porcentaje_vol, normalizar):
         with wave.open(ruta_in, 'rb') as wav_in:
@@ -597,10 +669,8 @@ class EditorAudioApp:
                 
             muestras = array.array('h', frames_restantes)
             
-            # --- Optimización Matemática C-level ---
             if normalizar:
                 if muestras:
-                    # En lugar de un bucle for, usamos min y max internos para calcular picos más rápido
                     pico_maximo = max(abs(max(muestras)), abs(min(muestras)))
                     factor = 32767.0 / pico_maximo if pico_maximo > 0 else 1.0
                 else:
@@ -640,7 +710,6 @@ class EditorAudioApp:
             self.mostrar_alerta("Aviso", self.t("msg_sin_sel"))
             return
 
-        # ---- CREACIÓN DE LA VENTANA DE CARGA CON CTK ----
         ventana_carga = ctk.CTkToplevel(self.root)
         ventana_carga.title(self.t("procesando_tit"))
         ventana_carga.geometry("380x180")
@@ -675,7 +744,11 @@ class EditorAudioApp:
             
             try:
                 bytes_wav = self.procesar_audio_a_memoria(dato["ruta_absoluta"], segundos, volumen, normalizar)
-                self.audios_memoria[dato["ruta_relativa"]] = bytes_wav
+                self.audios_memoria[dato["ruta_relativa"]] = {
+                    "bytes": bytes_wav,
+                    "nombre": dato["nombre"],
+                    "mtime": dato["mtime"]
+                }
             except Exception as e:
                 print(f"Error procesando {dato['nombre']}: {e}")
                 errores += 1
@@ -686,42 +759,78 @@ class EditorAudioApp:
         self.abrir_ventana_previsualizacion()
 
     def abrir_ventana_previsualizacion(self):
-        ventana_prev = ctk.CTkToplevel(self.root)
-        ventana_prev.title(self.t("previsualizar"))
-        ventana_prev.geometry("600x450")
-        ventana_prev.protocol("WM_DELETE_WINDOW", lambda: (self.detener_audio(), ventana_prev.destroy()))
+        self.ventana_prev = ctk.CTkToplevel(self.root)
+        self.ventana_prev.title(self.t("previsualizar"))
+        self.ventana_prev.geometry("600x520")
+        self.ventana_prev.protocol("WM_DELETE_WINDOW", lambda: (self.detener_audio(), self.ventana_prev.destroy()))
         
-        ventana_prev.transient(self.root)
-        ventana_prev.grab_set()
+        self.ventana_prev.transient(self.root)
+        self.ventana_prev.grab_set()
         
-        # Centrar
         self.root.update_idletasks()
         x = self.root.winfo_x() + (self.root.winfo_width() // 2) - 300
-        y = self.root.winfo_y() + (self.root.winfo_height() // 2) - 225
-        ventana_prev.geometry(f"+{x}+{y}")
+        y = self.root.winfo_y() + (self.root.winfo_height() // 2) - 260
+        self.ventana_prev.geometry(f"+{x}+{y}")
         
-        ctk.CTkLabel(ventana_prev, text=self.t("titulo_prev"), font=self.FONT_TITLE).pack(pady=10)
+        ctk.CTkLabel(self.ventana_prev, text=self.t("titulo_prev"), font=self.FONT_TITLE).pack(pady=10)
         
-        frame_int_prev = ctk.CTkScrollableFrame(ventana_prev, fg_color=self.GRAY_FRAME, corner_radius=10)
-        frame_int_prev.pack(fill="both", expand=True, padx=20, pady=5)
+        frame_filtro_prev = ctk.CTkFrame(self.ventana_prev, fg_color="transparent")
+        frame_filtro_prev.pack(fill="x", padx=20, pady=(0, 5))
         
-        for i, (ruta_rel, bytes_wav) in enumerate(self.audios_memoria.items()):
-            row_frame = ctk.CTkFrame(frame_int_prev, fg_color="transparent")
-            row_frame.pack(fill="x", pady=2)
-
-            btn_play = ctk.CTkButton(row_frame, text="▶", width=40, font=self.FONT_MAIN, fg_color=self.GRAY_INNER, hover_color="#444444")
-            btn_play.configure(command=lambda b_wav=bytes_wav, b=btn_play: self._toggle_reproducir(b_wav, b, es_memoria=True))
-            btn_play.pack(side="left", padx=5)
+        ctk.CTkLabel(frame_filtro_prev, text=self.t("filtro_lbl"), font=self.FONT_MAIN).pack(side="left", padx=(0, 10))
+        filtros_lista = [self.t("filtro_az"), self.t("filtro_za"), self.t("filtro_new"), self.t("filtro_old")]
+        self.combo_filtro_prev = ctk.CTkComboBox(frame_filtro_prev, values=filtros_lista, state="readonly", width=140, font=self.FONT_MAIN, fg_color=self.GRAY_INNER, border_color=self.PURPLE_BASE, button_color=self.PURPLE_BASE, button_hover_color=self.PURPLE_HOVER, command=self.aplicar_filtro_prev)
+        self.combo_filtro_prev.set(self._get_filter_text(self.filtro_prev_actual))
+        self.combo_filtro_prev.pack(side="left")
+        
+        self.frame_int_prev = ctk.CTkScrollableFrame(self.ventana_prev, fg_color=self.GRAY_FRAME, corner_radius=10)
+        self.frame_int_prev.pack(fill="both", expand=True, padx=20, pady=5)
+        
+        self.renderizar_lista_prev()
             
-            ctk.CTkLabel(row_frame, text=ruta_rel, font=self.FONT_MAIN, anchor="w").pack(side="left", fill="x", expand=True)
-            
-        frame_botones = ctk.CTkFrame(ventana_prev, fg_color="transparent")
+        frame_botones = ctk.CTkFrame(self.ventana_prev, fg_color="transparent")
         frame_botones.pack(pady=15)
         
         ctk.CTkButton(frame_botones, text=self.t("guardar_solo"), font=self.FONT_MAIN, fg_color=self.PURPLE_BASE, hover_color=self.PURPLE_HOVER,
-                      command=lambda: self.guardar_audios(solo_modificados=True, ventana=ventana_prev)).pack(side="left", padx=10)
+                      command=lambda: self.guardar_audios(solo_modificados=True, ventana=self.ventana_prev)).pack(side="left", padx=10)
         ctk.CTkButton(frame_botones, text=self.t("guardar_todos"), font=self.FONT_MAIN, fg_color=self.PURPLE_BASE, hover_color=self.PURPLE_HOVER,
-                      command=lambda: self.guardar_audios(solo_modificados=False, ventana=ventana_prev)).pack(side="left", padx=10)
+                      command=lambda: self.guardar_audios(solo_modificados=False, ventana=self.ventana_prev)).pack(side="left", padx=10)
+
+    def aplicar_filtro_prev(self, valor):
+        if valor == self.t("filtro_az"):
+            self.filtro_prev_actual = "A-Z"
+        elif valor == self.t("filtro_za"):
+            self.filtro_prev_actual = "Z-A"
+        elif valor == self.t("filtro_new"):
+            self.filtro_prev_actual = "NEW"
+        elif valor == self.t("filtro_old"):
+            self.filtro_prev_actual = "OLD"
+            
+        self.renderizar_lista_prev()
+
+    def renderizar_lista_prev(self):
+        for widget in self.frame_int_prev.winfo_children(): widget.destroy()
+        
+        lista_ordenada = []
+        for ruta_rel, info in self.audios_memoria.items():
+            lista_ordenada.append({
+                "ruta_relativa": ruta_rel,
+                "nombre": info["nombre"],
+                "mtime": info["mtime"],
+                "bytes": info["bytes"]
+            })
+            
+        self._ordenar_datos(lista_ordenada, self.filtro_prev_actual)
+        
+        for dato in lista_ordenada:
+            row_frame = ctk.CTkFrame(self.frame_int_prev, fg_color="transparent")
+            row_frame.pack(fill="x", pady=2)
+
+            btn_play = ctk.CTkButton(row_frame, text="▶", width=40, font=self.FONT_MAIN, fg_color=self.GRAY_INNER, hover_color="#444444")
+            btn_play.configure(command=lambda b_wav=dato["bytes"], b=btn_play: self._toggle_reproducir(b_wav, b, es_memoria=True))
+            btn_play.pack(side="left", padx=5)
+            
+            ctk.CTkLabel(row_frame, text=dato["ruta_relativa"], font=self.FONT_MAIN, anchor="w").pack(side="left", fill="x", expand=True)
 
     # ================= GUARDADO =================
     def guardar_audios(self, solo_modificados, ventana):
@@ -730,14 +839,13 @@ class EditorAudioApp:
         directorio_padre = filedialog.askdirectory(title=self.t("msg_dir_tit"))
         if not directorio_padre: return 
         
-        # Cuadro de dialogo CTk 100% Nativo para solicitar el nombre de la carpeta
         dialog = ctk.CTkInputDialog(text=self.t("msg_nombre_txt"), title=self.t("msg_nombre_tit"))
         nombre_carpeta = dialog.get_input()
         
-        if nombre_carpeta is None: # Si el usuario presiona Cancelar
+        if nombre_carpeta is None:
             return 
         elif nombre_carpeta.strip() == "":
-            nombre_carpeta = self.t("def_folder") # Si lo deja vacio, usamos el default
+            nombre_carpeta = self.t("def_folder")
             
         carpeta_salida = os.path.join(directorio_padre, nombre_carpeta)
         sufijo = self.ent_sufijo.get().strip()
@@ -764,7 +872,7 @@ class EditorAudioApp:
 
                 if esta_seleccionado:
                     with open(ruta_out, 'wb') as f:
-                        f.write(self.audios_memoria[ruta_rel_original])
+                        f.write(self.audios_memoria[ruta_rel_original]["bytes"])
                 elif not solo_modificados:
                     shutil.copy2(ruta_in, ruta_out)
 

@@ -1,0 +1,73 @@
+Changelog - Diogenes Audio Mod
+
+[v0.7] - Custom UI & Optimized (Versión Actual)
+
+Añadido:
+
+Sistema de Alertas Nativas: Se eliminaron las ventanas antiguas de Windows (messagebox y simpledialog). Todas las advertencias y notificaciones usan ventanas emergentes personalizadas de CustomTkinter.
+
+Guía de Ayuda Remasterizada: El botón de ayuda despliega una ventana con textos reescritos y más fáciles de entender.
+
+Optimizado:
+
+Procesamiento de Audio C-Level: Se cambió el bucle clásico de normalización por funciones matemáticas nativas (min/max) de Python. El programa procesa el audio más rápido.
+
+Solucionado:
+
+Bug del Selector de Idioma: Se reparó el error donde el menú desplegable no actualizaba la interfaz al cambiar de idioma.
+
+[v0.6] - Modern UI Overhaul
+
+Añadido:
+
+Migración a CustomTkinter: La aplicación entera fue reescrita para soportar diseño moderno.
+
+Modo Oscuro Integrado: Nueva paleta de colores en grises oscuros y acentos en morado.
+
+Botones Stepper (+ y -): Se añadieron botones de incremento y decremento fino en los campos de Segundos y Volumen.
+
+Scroll Moderno: Integración de scroll actual para la lista de audios, sin barras anticuadas.
+
+[v0.5] - QoL Update
+
+Añadido:
+
+Botón de Descarte de OTO: Se implementó un botón para eliminar un oto.ini cargado de la memoria sin tener que reiniciar la app.
+
+[v0.4] - Performance & Feedback
+
+Añadido:
+
+Pantalla de Carga Modal: Ventana de progreso durante la generación de previsualizaciones. Bloquea la pantalla principal y muestra el progreso en tiempo real.
+
+[v0.3] - Smart OTO.ini Engine
+
+Añadido:
+
+Sistema de Herencia Numérica: Enlaza el .wav nuevo con la configuración de un oto.ini cargado (Offset, Overlap, Consonant, etc).
+
+Detección Algorítmica de Métodos: Escanea y detecta automáticamente si el Voicebank es CV, VCV, CVVC o VCCV.
+
+Conversión Básica de Formatos: Adapta los alias (ej. agregando prefijos "- ") si se cambia el método de destino.
+
+[v0.2] - Base Pro Edition
+
+Añadido:
+
+Soporte Multilingüe en Tiempo Real: Interfaz en Español, Inglés y Portugués.
+
+Normalización de Picos (Peak Normalization): Eleva el volumen individual al límite máximo seguro sin distorsión.
+
+Renombrado Masivo: Incrustación de sufijos a los archivos exportados.
+
+Generador de OTO.ini: Creación automática de archivos .ini en codificación Shift-JIS.
+
+[v0.1] - Concepto Inicial
+
+Ajuste de volumen fijo porcentual.
+
+Recorte de silencios fijos al inicio (Trim).
+
+Previsualización de audios en RAM.
+
+Exportación y clonación de carpetas.
